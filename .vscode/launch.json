@@ -1,0 +1,14 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "chrome",
+            "request": "launch",
+            "name": "Open 12_ridge_focused_3d_heightmap.html",
+            "file": "e:\\고가연\\과학고\\2026 2학년\\지구과학 실험\\지질\\5. 해저확장과 판구조론\\실제데이터_분석\\output\\12_ridge_focused_3d_heightmap.html"
+        }
+    ]
+}
