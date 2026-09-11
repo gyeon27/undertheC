@@ -198,6 +198,17 @@ age_grid = (
     .to_numpy()
 )
 age_limit = float(np.nanquantile(age_grid, 0.995))
+# 가장 최근에 생성된 해양지각은 #2582FA로 시작하고, 연령이 증가할수록
+# 청록과 연두를 거쳐 노랑으로 밝고 부드럽게 이어지도록 한다.
+age_colorscale = [
+    [0.00, "#2582FA"],
+    [0.18, "#3A9FE8"],
+    [0.36, "#55B9CF"],
+    [0.54, "#7CCDAE"],
+    [0.70, "#A8D98A"],
+    [0.85, "#D5DC64"],
+    [1.00, "#FDE737"],
+]
 
 # CK95 극성 연대표를 고지자기로 제약된 해양지각 연령 격자에 적용한다.
 # +1은 현재와 같은 정상자화, -1은 반대인 역자화, 0은 연대표 범위 밖 미분류이다.
@@ -224,13 +235,24 @@ paleomag_z = depth_grid[paleomag_lat_idx, paleomag_lon_idx] + 240
 axis_display_idx = np.clip(np.searchsorted(focus_lons, axis_lon), 0, len(focus_lons) - 1)
 axis_display_depth = display_depth[np.arange(len(lats)), axis_display_idx]
 
+# 세 표면 모드(수심/고지자기 연대/고지자기 방향)가 동일한 입체 음영을 사용한다.
+# 북서쪽 위에서 비스듬히 비추고 주변광을 낮춰 능선과 골짜기의 명암 차를 살린다.
+terrain_lighting = dict(
+    ambient=0.34,
+    diffuse=0.95,
+    roughness=0.72,
+    specular=0.16,
+    fresnel=0.08,
+)
+terrain_lightposition = dict(x=-1100, y=-1500, z=2400)
+
 fig_height = go.Figure()
 fig_height.add_trace(go.Surface(
     x=FOCUS_LON, y=FOCUS_LAT, z=display_depth,
-    surfacecolor=age_grid, colorscale="Cividis", cmin=0, cmax=age_limit,
+    surfacecolor=age_grid, colorscale=age_colorscale, cmin=0, cmax=age_limit,
     colorbar=dict(title="고지자기 기반 연령 (Ma)", len=0.72, x=1.02),
-    lighting=dict(ambient=0.62, diffuse=0.72, roughness=0.9, specular=0.05, fresnel=0.04),
-    lightposition=dict(x=-800, y=-500, z=1800),
+    lighting=terrain_lighting,
+    lightposition=terrain_lightposition,
     hovertemplate="경도 %{x:.2f}°<br>위도 %{y:.2f}°N<br>고도/수심 %{z:.0f} m<extra></extra>",
     name="ETOPO 2022 지형",
 ))
@@ -248,7 +270,7 @@ fig_height.add_trace(go.Scatter3d(
 fig_height.add_trace(go.Scatter3d(
     x=paleomag["lon"], y=paleomag["lat"], z=paleomag_z, mode="markers",
     marker=dict(size=1.7, symbol="diamond", color=paleomag["age_Ma"],
-                colorscale="Cividis", cmin=0, cmax=age_limit, opacity=0.56,
+                colorscale=age_colorscale, cmin=0, cmax=age_limit, opacity=0.56,
                 showscale=False),
     customdata=np.column_stack([
         paleomag["chron"], paleomag["anomaly_end"], paleomag["age_Ma"],
@@ -303,16 +325,22 @@ fig_height.update_layout(
                  dict(label="🌍 수심", method="restyle",
                       args=[{"surfacecolor": [display_depth], "colorscale": ["Earth"],
                              "cmin": [-7000], "cmax": [500],
+                             "lighting": [terrain_lighting],
+                             "lightposition": [terrain_lightposition],
                              "colorbar.tickvals": [None], "colorbar.ticktext": [None],
                              "colorbar.title.text": ["고도/수심 (m)"]}, [0]]),
                  dict(label="🧲 고지자기 연대", method="restyle",
-                      args=[{"surfacecolor": [age_grid], "colorscale": ["Cividis"],
+                      args=[{"surfacecolor": [age_grid], "colorscale": [age_colorscale],
                              "cmin": [0], "cmax": [age_limit],
+                             "lighting": [terrain_lighting],
+                             "lightposition": [terrain_lightposition],
                              "colorbar.tickvals": [None], "colorbar.ticktext": [None],
                              "colorbar.title.text": ["고지자기 기반 연령 (Ma)"]}, [0]]),
                  dict(label="🧭 고지자기 방향", method="restyle",
                       args=[{"surfacecolor": [polarity_grid], "colorscale": [polarity_colorscale],
                              "cmin": [-1], "cmax": [1],
+                             "lighting": [terrain_lighting],
+                             "lightposition": [terrain_lightposition],
                              "colorbar.tickvals": [[-1, 0, 1]],
                              "colorbar.ticktext": [["역자화", "미분류", "정상자화"]],
                              "colorbar.title.text": ["고지자기 방향"]}, [0]]),
