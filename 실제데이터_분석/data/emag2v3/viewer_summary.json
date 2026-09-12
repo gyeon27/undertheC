@@ -1,0 +1,18 @@
+{
+  "native_shape": [
+    900,
+    900
+  ],
+  "display3d_shape": [
+    450,
+    450
+  ],
+  "native_range": [
+    -586.6854858398438,
+    820.2532958984375
+  ],
+  "native_valid": 810000,
+  "color_limit_nT": 500,
+  "saturated_fraction": 0.0004419753086419753,
+  "source": "EMAG2_V3_20170530_SeaLevel"
+}

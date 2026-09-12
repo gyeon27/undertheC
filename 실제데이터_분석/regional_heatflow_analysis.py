@@ -37,13 +37,11 @@ BATHY_FILE = DATA / "regional_bathymetry_10N40N_60W20W.csv"
 HEAT_FILE = DATA / "heat_flow_ihfc_10N40N_60W20W.csv"
 PALEOMAG_PICK_FILE = DATA / "paleomagnetic_picks_gsfml_10N40N_55W25W.csv"
 SEAFLOOR_AGE_FILE = DATA / "seafloor_age_earthbyte_10N40N_55W25W.csv"
-POLARITY_FILE = DATA / "geomagnetic_polarity_timescale_ck95.csv"
 
 bathy = pd.read_csv(BATHY_FILE)
 heat_all = pd.read_csv(HEAT_FILE)
 paleomag = pd.read_csv(PALEOMAG_PICK_FILE)
 seafloor_age = pd.read_csv(SEAFLOOR_AGE_FILE)
-polarity_timescale = pd.read_csv(POLARITY_FILE)
 heat_all = heat_all.dropna(subset=["lon", "lat", "heat_flow_mW_m2"]).copy()
 paleomag = paleomag.dropna(subset=["lon", "lat", "age_Ma"]).copy()
 
@@ -169,195 +167,10 @@ fig3d.update_layout(
 )
 fig3d.write_html(OUT / "11_regional_3d_bathymetry_heatflow.html")
 
-# 사용자가 요청한 기존 3D 표현 방식: 경도·위도 지형면 + 붉은 ETOPO 격자점.
-# 너무 넓은 대서양 가장자리는 덜어내고 MAR 전체 굴곡이 화면 중앙을 가로지르도록 한다.
-focus_lon_mask = (lons >= -55.0) & (lons <= -25.0)
-focus_lons = lons[focus_lon_mask]
-focus_depth = depth_grid[:, focus_lon_mask]
-FOCUS_LON, FOCUS_LAT = np.meshgrid(focus_lons, lats)
-
-# 원자료 격자점은 보존하고 3D 표면에만 완만한 보간을 적용한다. 먼저 3×3 국지
-# 중앙값에서 800 m 이상 튀는 한 칸짜리 봉우리를 눌러 준 뒤, 0.1° 격자 약 한 칸
-# 범위의 Gaussian 필터로 삼각형 모서리를 완화한다.
-local_median_depth = median_filter(focus_depth, size=3, mode="nearest")
-despiked_depth = np.where(
-    np.abs(focus_depth - local_median_depth) > 800.0,
-    local_median_depth,
-    focus_depth,
-)
-display_depth = gaussian_filter(despiked_depth, sigma=0.85, mode="nearest")
-
-point_stride = 4
-point_lon = FOCUS_LON[::point_stride, ::point_stride].ravel()
-point_lat = FOCUS_LAT[::point_stride, ::point_stride].ravel()
-point_depth = focus_depth[::point_stride, ::point_stride].ravel() + 35
-
-age_grid = (
-    seafloor_age.pivot(index="lat", columns="lon", values="seafloor_age_Ma")
-    .reindex(index=lats, columns=focus_lons)
-    .to_numpy()
-)
-age_limit = float(np.nanquantile(age_grid, 0.995))
-# 가장 최근에 생성된 해양지각은 #2582FA로 시작하고, 연령이 증가할수록
-# 청록과 연두를 거쳐 노랑으로 밝고 부드럽게 이어지도록 한다.
-age_colorscale = [
-    [0.00, "#2582FA"],
-    [0.18, "#3A9FE8"],
-    [0.36, "#55B9CF"],
-    [0.54, "#7CCDAE"],
-    [0.70, "#A8D98A"],
-    [0.85, "#D5DC64"],
-    [1.00, "#FDE737"],
-]
-
-# CK95 극성 연대표를 고지자기로 제약된 해양지각 연령 격자에 적용한다.
-# +1은 현재와 같은 정상자화, -1은 반대인 역자화, 0은 연대표 범위 밖 미분류이다.
-polarity_grid = np.zeros_like(age_grid, dtype=float)
-for interval in polarity_timescale.itertuples(index=False):
-    mask = (age_grid >= interval.start_Ma) & (age_grid < interval.end_Ma)
-    polarity_grid[mask] = interval.polarity
-polarity_grid[~np.isfinite(age_grid)] = np.nan
-polarity_colorscale = [
-    [0.0000, "#2166ac"], [0.3332, "#2166ac"],
-    [0.3333, "#bdbdbd"], [0.6666, "#bdbdbd"],
-    [0.6667, "#b2182b"], [1.0000, "#b2182b"],
-]
-
-# GSFML 점은 출판된 해양 자기 이상 chron 식별 위치이다. 실제 해저면 바로 위에
-# 올려 고지자기 제약 자료와 지형의 관계를 함께 보인다.
-paleomag_lon_idx = np.clip(
-    np.searchsorted(lons, paleomag["lon"].to_numpy()), 0, len(lons) - 1
-)
-paleomag_lat_idx = np.clip(
-    np.searchsorted(lats, paleomag["lat"].to_numpy()), 0, len(lats) - 1
-)
-paleomag_z = depth_grid[paleomag_lat_idx, paleomag_lon_idx] + 240
-axis_display_idx = np.clip(np.searchsorted(focus_lons, axis_lon), 0, len(focus_lons) - 1)
-axis_display_depth = display_depth[np.arange(len(lats)), axis_display_idx]
-
-# 세 표면 모드(수심/고지자기 연대/고지자기 방향)가 동일한 입체 음영을 사용한다.
-# 북서쪽 위에서 비스듬히 비추고 주변광을 낮춰 능선과 골짜기의 명암 차를 살린다.
-terrain_lighting = dict(
-    ambient=0.34,
-    diffuse=0.95,
-    roughness=0.72,
-    specular=0.16,
-    fresnel=0.08,
-)
-terrain_lightposition = dict(x=-1100, y=-1500, z=2400)
-
-fig_height = go.Figure()
-fig_height.add_trace(go.Surface(
-    x=FOCUS_LON, y=FOCUS_LAT, z=display_depth,
-    surfacecolor=age_grid, colorscale=age_colorscale, cmin=0, cmax=age_limit,
-    colorbar=dict(title="고지자기 기반 연령 (Ma)", len=0.72, x=1.02),
-    lighting=terrain_lighting,
-    lightposition=terrain_lightposition,
-    hovertemplate="경도 %{x:.2f}°<br>위도 %{y:.2f}°N<br>고도/수심 %{z:.0f} m<extra></extra>",
-    name="ETOPO 2022 지형",
-))
-fig_height.add_trace(go.Scatter3d(
-    x=point_lon, y=point_lat, z=point_depth, mode="markers",
-    marker=dict(size=1.25, color="#ff6f61", opacity=0.42),
-    hovertemplate="ETOPO 격자점<br>경도 %{x:.2f}°<br>위도 %{y:.2f}°N<br>수심 %{z:.0f} m<extra></extra>",
-    name="ETOPO 격자점 (표시용 0.4°)",
-))
-fig_height.add_trace(go.Scatter3d(
-    x=axis_lon, y=lats, z=axis_display_depth + 120, mode="lines",
-    line=dict(color="#ffd400", width=7), name="중앙해령 축",
-    hovertemplate="중앙해령 축<br>위도 %{y:.1f}°N<br>수심 %{z:.0f} m<extra></extra>",
-))
-fig_height.add_trace(go.Scatter3d(
-    x=paleomag["lon"], y=paleomag["lat"], z=paleomag_z, mode="markers",
-    marker=dict(size=1.7, symbol="diamond", color=paleomag["age_Ma"],
-                colorscale=age_colorscale, cmin=0, cmax=age_limit, opacity=0.56,
-                showscale=False),
-    customdata=np.column_stack([
-        paleomag["chron"], paleomag["anomaly_end"], paleomag["age_Ma"],
-        paleomag["quality"], paleomag["reference"],
-    ]),
-    hovertemplate=("GSFML 고지자기 식별점<br>경도 %{x:.3f}°<br>위도 %{y:.3f}°N"
-                   "<br>Chron %{customdata[0]} (%{customdata[1]} 경계)"
-                   "<br>연대 %{customdata[2]:.3f} Ma · 품질 %{customdata[3]}"
-                   "<br>%{customdata[4]}<extra></extra>"),
-    name="GSFML 고지자기 식별점",
-))
-
-height_camera = dict(eye=dict(x=-1.45, y=-1.55, z=1.18),
-                     center=dict(x=0.03, y=0.02, z=-0.12), up=dict(x=0, y=0, z=1))
-fig_height.update_layout(
-    title=dict(
-        text=("<b>ETOPO 2022 북대서양 중앙해령 3D Height Map</b><br>"
-              "<sup>붉은점=ETOPO · 노란선=해령 축 · 마름모=GSFML 고지자기 식별점 · 수심/연령/방향 전환</sup>"),
-        x=0.5, y=0.97,
-    ),
-    scene=dict(
-        xaxis=dict(title="경도 (Longitude)", range=[-55, -25],
-                   backgroundcolor="rgb(225,235,245)", gridcolor="white", showbackground=True),
-        yaxis=dict(title="위도 (Latitude)", range=[10, 40],
-                   backgroundcolor="rgb(225,235,245)", gridcolor="white", showbackground=True),
-        zaxis=dict(title="고도/수심 (m)", range=[-7000, 1200],
-                   backgroundcolor="rgb(195,215,235)", gridcolor="white", showbackground=True),
-        aspectmode="manual", aspectratio=dict(x=1.15, y=1.15, z=0.40),
-        camera=height_camera,
-    ),
-    width=1280, height=960, margin=dict(l=0, r=130, b=0, t=175),
-    legend=dict(x=0.01, y=0.01, bgcolor="rgba(255,255,255,0.72)"),
-    updatemenus=[
-        dict(type="buttons", direction="right", x=0.00, y=1.20, showactive=True,
-             buttons=[
-                 dict(label="🧲 고지자기점 표시", method="restyle", args=[{"visible": True}, [3]]),
-                 dict(label="🧲 고지자기점 숨김", method="restyle", args=[{"visible": False}, [3]]),
-             ]),
-        dict(type="buttons", direction="right", x=0.00, y=1.13, showactive=True,
-             buttons=[
-                 dict(label="🔴 ETOPO 점 표시", method="restyle", args=[{"visible": True}, [1]]),
-                 dict(label="🔴 ETOPO 점 숨김", method="restyle", args=[{"visible": False}, [1]]),
-             ]),
-        dict(type="buttons", direction="right", x=0.37, y=1.13, showactive=True,
-             buttons=[
-                 dict(label="🟡 해령 축 표시", method="restyle", args=[{"visible": True}, [2]]),
-                 dict(label="🟡 해령 축 숨김", method="restyle", args=[{"visible": False}, [2]]),
-             ]),
-        dict(type="buttons", direction="right", x=0.38, y=1.06,
-             showactive=True, active=1,
-             buttons=[
-                 dict(label="🌍 수심", method="restyle",
-                      args=[{"surfacecolor": [display_depth], "colorscale": ["Earth"],
-                             "cmin": [-7000], "cmax": [500],
-                             "lighting": [terrain_lighting],
-                             "lightposition": [terrain_lightposition],
-                             "colorbar.tickvals": [None], "colorbar.ticktext": [None],
-                             "colorbar.title.text": ["고도/수심 (m)"]}, [0]]),
-                 dict(label="🧲 고지자기 연대", method="restyle",
-                      args=[{"surfacecolor": [age_grid], "colorscale": [age_colorscale],
-                             "cmin": [0], "cmax": [age_limit],
-                             "lighting": [terrain_lighting],
-                             "lightposition": [terrain_lightposition],
-                             "colorbar.tickvals": [None], "colorbar.ticktext": [None],
-                             "colorbar.title.text": ["고지자기 기반 연령 (Ma)"]}, [0]]),
-                 dict(label="🧭 고지자기 방향", method="restyle",
-                      args=[{"surfacecolor": [polarity_grid], "colorscale": [polarity_colorscale],
-                             "cmin": [-1], "cmax": [1],
-                             "lighting": [terrain_lighting],
-                             "lightposition": [terrain_lightposition],
-                             "colorbar.tickvals": [[-1, 0, 1]],
-                             "colorbar.ticktext": [["역자화", "미분류", "정상자화"]],
-                             "colorbar.title.text": ["고지자기 방향"]}, [0]]),
-             ]),
-        dict(type="buttons", direction="right", x=0.00, y=1.06,
-             buttons=[
-                 dict(label="사선 보기", method="relayout", args=[{"scene.camera": height_camera}]),
-                 dict(label="위에서 보기", method="relayout",
-                      args=[{"scene.camera": dict(eye=dict(x=0.01, y=0.01, z=2.55),
-                                                   center=dict(x=0, y=0, z=0), up=dict(x=0, y=1, z=0))}]),
-                 dict(label="해령 측면 보기", method="relayout",
-                      args=[{"scene.camera": dict(eye=dict(x=2.15, y=-0.25, z=0.7),
-                                                   center=dict(x=0, y=0, z=-0.1), up=dict(x=0, y=0, z=1))}]),
-             ]),
-    ],
-)
-fig_height.write_html(OUT / "12_ridge_focused_3d_heightmap.html")
+# 12번 지도는 NOAA EMAG2v3 해수면 자기 이상 격자를 사용한다.
+# 연령에서 환산한 CK95 극성 표면은 사용하지 않는다.
+from build_emag_surface_viewer import build_viewer
+fig_height = build_viewer()
 
 # 해령 중심 좌표계 3D height map.
 # 휘어진 해령 축을 각 위도에서 거리 0 km로 옮기면 능선과 중앙 열곡이 화면 한가운데

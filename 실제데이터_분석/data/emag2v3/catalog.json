@@ -1,0 +1,38 @@
+{
+  "objectIdFieldName": "OBJECTID",
+  "fields": [
+    {
+      "name": "OBJECTID",
+      "type": "esriFieldTypeOID",
+      "alias": "OBJECTID",
+      "domain": null
+    },
+    {
+      "name": "Name",
+      "type": "esriFieldTypeString",
+      "alias": "Name",
+      "domain": null,
+      "length": 200
+    }
+  ],
+  "features": [
+    {
+      "attributes": {
+        "OBJECTID": 1,
+        "Name": "EMAG2_V3_20170530_UpCont"
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2,
+        "Name": "EMAG2_V3_20170530_SeaLevel"
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 3,
+        "Name": "EMAG2_V3_20170530_Error"
+      }
+    }
+  ]
+}

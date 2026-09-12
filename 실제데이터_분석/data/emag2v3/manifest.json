@@ -1,0 +1,52 @@
+[
+  {
+    "product": "EMAG2_V3_20170530_SeaLevel",
+    "url": "https://gis.ngdc.noaa.gov/arcgis/rest/services/EMAG2v3/ImageServer/exportImage?bbox=-55%2C10%2C-25%2C40&bboxSR=4326&imageSR=4326&size=900%2C900&format=tiff&pixelType=F32&interpolation=RSP_NearestNeighbor&renderingRule=%7B%22rasterFunction%22%3A+%22None%22%7D&mosaicRule=%7B%22mosaicMethod%22%3A+%22esriMosaicLockRaster%22%2C+%22lockRasterIds%22%3A+%5B2%5D%2C+%22mosaicOperation%22%3A+%22MT_FIRST%22%7D&f=json",
+    "export": {
+      "href": "https://gis.ngdc.noaa.gov/arcgis/rest/directories/arcgisoutput/EMAG2v3_ImageServer/_ags_6a846381_5e70_408a_acf3_7e2b75658db8.tif",
+      "width": 900,
+      "height": 900,
+      "extent": {
+        "xmin": -55,
+        "ymin": 10,
+        "xmax": -25,
+        "ymax": 40,
+        "spatialReference": {
+          "wkid": 4326,
+          "latestWkid": 4326
+        }
+      },
+      "scale": 0
+    },
+    "sha256": "c9fced31abd2bf488eb70739c8aa740741972576ac1c9c2bed24ae637fc079f9",
+    "bytes": 4195622,
+    "valid_cells": 810000,
+    "min": -586.6854858398438,
+    "max": 820.2532958984375
+  },
+  {
+    "product": "EMAG2_V3_20170530_Error",
+    "url": "https://gis.ngdc.noaa.gov/arcgis/rest/services/EMAG2v3/ImageServer/exportImage?bbox=-55%2C10%2C-25%2C40&bboxSR=4326&imageSR=4326&size=900%2C900&format=tiff&pixelType=F32&interpolation=RSP_NearestNeighbor&renderingRule=%7B%22rasterFunction%22%3A+%22None%22%7D&mosaicRule=%7B%22mosaicMethod%22%3A+%22esriMosaicLockRaster%22%2C+%22lockRasterIds%22%3A+%5B3%5D%2C+%22mosaicOperation%22%3A+%22MT_FIRST%22%7D&f=json",
+    "export": {
+      "href": "https://gis.ngdc.noaa.gov/arcgis/rest/directories/arcgisoutput/EMAG2v3_ImageServer/_ags_738eed2b_ecb8_4830_9d85_9a23bc63cdd1.tif",
+      "width": 900,
+      "height": 900,
+      "extent": {
+        "xmin": -55,
+        "ymin": 10,
+        "xmax": -25,
+        "ymax": 40,
+        "spatialReference": {
+          "wkid": 4326,
+          "latestWkid": 4326
+        }
+      },
+      "scale": 0
+    },
+    "sha256": "22cee21643e0ea9cb5d3ca379b5a1c342f406e94a1ba765c53e981cdda40e132",
+    "bytes": 4195622,
+    "valid_cells": 810000,
+    "min": -888.0,
+    "max": 100.0
+  }
+]
